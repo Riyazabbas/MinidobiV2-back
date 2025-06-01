@@ -1,46 +1,30 @@
 const express = require("express");
 const cors = require("cors");
-const bodyParser = require("body-parser");
-
 const app = express();
-const port = process.env.PORT || 3000;
+let ledStatus = "off";
 
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json());
 
-let ledStatus = false;
-let lightReading = 0;
+app.get("/status", (req, res) => {
+  res.send(ledStatus);
+});
 
-// Toggle LED
 app.post("/toggle", (req, res) => {
   const { status } = req.body;
-  if (typeof status === "boolean") {
+  if (status === "on" || status === "off") {
     ledStatus = status;
-    res.json({ message: "LED status updated" });
-  } else {
-    res.status(400).send("Invalid data");
+    return res.send("LED status changed to " + status);
   }
+  res.status(400).send("Invalid status");
 });
 
-// Get LED status
-app.get("/status", (req, res) => {
-  res.json({ status: ledStatus });
+app.get("/", (req, res) => {
+  res.send("ESP32 Backend is running.");
 });
 
-// Receive light reading
-app.post("/light", (req, res) => {
-  const { value } = req.body;
-  if (typeof value === "number") {
-    lightReading = value;
-    res.send("Light reading updated");
-  } else {
-    res.status(400).send("Invalid light data");
-  }
-});
-
-// Return light reading
-app.get("/light", (req, res) => {
-  res.json({ value: lightReading });
+app.listen(3000, () => {
+  console.log("Server running on port 3000");
 });
 
 app.listen(port, () => {
