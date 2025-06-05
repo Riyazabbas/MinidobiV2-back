@@ -1,55 +1,74 @@
 const express = require("express");
 const cors = require("cors");
+const axios = require("axios");
 const app = express();
-
 let ledStatus = "off";
-let currentLocation = null; // Store the latest location
 
 app.use(cors());
 app.use(express.json());
 
-// GET LED status
+// LED status
 app.get("/status", (req, res) => {
   res.send(ledStatus);
 });
 
-// POST to toggle LED status
-app.post("/toggle", (req, res) => {
+// Create payment when "on" is requested
+app.post("/toggle", async (req, res) => {
   const { status } = req.body;
-  if (status === "on" || status === "off") {
-    ledStatus = status;
-    return res.send("LED status changed to " + status);
+
+  if (status === "on") {
+    try {
+      const response = await axios.post("https://dev.toyyibpay.com/index.php/api/createBill", null, {
+        params: {
+          userSecretKey: "xmgds3cq-ant6-mhc1-ohrw-ly2br3xlo3sb",
+          categoryCode: "tx4dvsmz",
+          billName: "Turn On LED",
+          billDescription: "Payment to turn on LED",
+          billPriceSetting: 1,
+          billPayorInfo: 1,
+          billAmount: 100, // in cents, RM1.00 = 100
+          billReturnUrl: "https://majlisaqiqaharyan-arasy.my.canva.site/minidobi",
+          billCallbackUrl: "https://minidobiv2-back-2.onrender.com/payment-callback",
+          billExternalReferenceNo: "LED001",
+          billTo: "Customer",
+          billEmail: "test@example.com",
+          billPhone: "0123456789"
+        }
+      });
+
+      const billCode = response.data[0].BillCode;
+      const paymentUrl = `https://dev.toyyibpay.com/${billCode}`;
+      res.send({ url: paymentUrl });
+
+    } catch (err) {
+      console.error("Payment error:", err);
+      res.status(500).send("Failed to initiate payment");
+    }
+
+  } else if (status === "off") {
+    ledStatus = "off";
+    res.send("LED status changed to off");
+  } else {
+    res.status(400).send("Invalid status");
   }
-  res.status(400).send("Invalid status");
 });
 
-// ✅ NEW: POST to receive 'location' from frontend
-app.post("/set-location", (req, res) => {
-  const { location } = req.body;
+// Callback endpoint ToyyibPay calls upon successful payment
+app.post("/payment-callback", (req, res) => {
+  const { status_id } = req.body;
 
-  if (!location) {
-    return res.status(400).send("Missing location");
+  if (status_id === "1") {
+    ledStatus = "on";
+    console.log("Payment successful. LED turned ON.");
   }
 
-  currentLocation = location;
-  console.log("Received location:", location);
-  res.json({ message: `Location saved: ${location}` });
+  res.sendStatus(200);
 });
 
-// ✅ NEW: GET to retrieve current location
-app.get("/get-location", (req, res) => {
-  if (currentLocation) {
-    return res.json({ location: currentLocation });
-  }
-  res.status(404).json({ message: "No location set yet." });
-});
-
-// Root route
 app.get("/", (req, res) => {
   res.send("ESP32 Backend is running.");
 });
 
-// Start server
 app.listen(3000, () => {
-  console.log("Server listening on port 3000");
+  console.log("Server running on port 3000");
 });
