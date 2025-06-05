@@ -40,7 +40,7 @@ app.post("/toggle", async (req, res) => {
 
       const billCode = response.data[0].BillCode;
       const paymentUrl = `https://dev.toyyibpay.com/${billCode}`;
-      res.send({ url: paymentUrl });
+      res.redirect(paymentUrl);
 
     } catch (err) {
       console.error("Payment error:", err);
